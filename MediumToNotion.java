@@ -33,19 +33,20 @@ public class MediumToNotion {
             String todayDate = LocalDate.now().toString(); 
 
             String jsonPayload = "{"
-                + "\"parent\": { \"database_id\": \"" + DATABASE_ID + "\" },"
-                + "\"properties\": {"
-                + "    \"Name\": { \"title\": [ { \"text\": { \"content\": \"" + articleTitle + "\" } } ] },"
-                + "    \"URL\": { \"url\": \"" + articleUrl + "\" },"
-                + "    \"Date\": { \"date\": { \"start\": \"" + todayDate + "\" } }"
-                + "},"
-                + "\"children\": ["
-                + "  { \"object\": \"block\", \"type\": \"heading_2\", \"heading_2\": { \"rich_text\": [ { \"text\": { \"content\": \"📝 今日練習摘要\" } } ] } },"
-                + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
-                + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \"關鍵單字 1: \" } } ] } },"
-                + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \"關鍵單字 2: \" } } ] } }"
-                + "]"
-                + "}";
+        + "\"parent\": { \"database_id\": \"" + DATABASE_ID + "\" },"
+        + "\"properties\": {"
+        + "    \"Name\": { \"title\": [ { \"text\": { \"content\": \"" + articleTitle + "\" } } ] },"
+        + "    \"URL\": { \"url\": \"" + articleUrl + "\" },"
+        + "    \"Date\": { \"date\": { \"start\": \"" + todayDate + "\" } }," // ⬅️ 這裡要多加一個逗號
+        + "    \"Article_Title\": { \"rich_text\": [ { \"text\": { \"content\": \"(在此手動輸入文章名稱)\" } } ] }" // ⬅️ 這是新增的欄位
+        + "},"
+        + "\"children\": ["
+        + "  { \"object\": \"block\", \"type\": \"heading_2\", \"heading_2\": { \"rich_text\": [ { \"text\": { \"content\": \"📝 今日練習摘要\" } } ] } },"
+        + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
+        + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \"關鍵單字 1: \" } } ] } },"
+        + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \"關鍵單字 2: \" } } ] } }"
+        + "]"
+        + "}";
 
             sendToNotion(jsonPayload);
             System.out.println("✅ 成功！今日主題：" + selectedTag);
