@@ -11,43 +11,37 @@ public class MediumToNotion {
 
     public static void main(String[] args) {
         try {
-            // ✅ 這裡完全採用妳剛剛看到的 10 個標籤，並處理成 URL 格式
+            // 1. 必中標籤清單
             String[] tags = {
-                "computer-science", 
-                "programming", 
-                "technology", 
-                "software-development", 
-                "coding", 
-                "artificial-intelligence", 
-                "software-engineering", 
-                "machine-learning", 
-                "algorithms", 
-                "ai"
+                "computer-science", "programming", "technology", 
+                "software-development", "coding", "artificial-intelligence", 
+                "software-engineering", "machine-learning", "algorithms", "ai"
             };
             
-            // 隨機抽一個
+            // 2. 隨機抽選與標題處理
             String selectedTag = tags[new Random().nextInt(tags.length)];
-            
             String articleTitle = "Daily Tech Study: [" + selectedTag.toUpperCase() + "]";
             String articleUrl = "https://medium.com/tag/" + selectedTag.toLowerCase();
-            String todayDate = LocalDate.now().toString(); 
+            String todayDate = LocalDate.now().toString(); // 這裡只拿 2026-04-25
 
+            // 3. 拼裝 JSON (確保時間格式 T08:00 只出現一次)
             String jsonPayload = "{"
-        + "\"parent\": { \"database_id\": \"" + DATABASE_ID + "\" },"
-        + "\"properties\": {"
-        + "    \"Name\": { \"title\": [ { \"text\": { \"content\": \"" + articleTitle + "\" } } ] },"
-        + "    \"URL\": { \"url\": \"" + articleUrl + "\" },"
-        + "    \"Date\": { \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } },"
-        + "    \"Article_Title\": { \"rich_text\": [ { \"text\": { \"content\": \"(在此手動輸入文章名稱)\" } } ] }" // ⬅️ 這是新增的欄位
-        + "},"
-        + "\"children\": ["
-        + "  { \"object\": \"block\", \"type\": \"heading_2\", \"heading_2\": { \"rich_text\": [ { \"text\": { \"content\": \"📝 今日練習摘要\" } } ] } },"
-        + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
-        + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \"關鍵單字 1: \" } } ] } },"
-        + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \"關鍵單字 2: \" } } ] } }"
-        + "]"
-        + "}";
+                + "\"parent\": { \"database_id\": \"" + DATABASE_ID + "\" },"
+                + "\"properties\": {"
+                + "    \"Name\": { \"title\": [ { \"text\": { \"content\": \"" + articleTitle + "\" } } ] },"
+                + "    \"URL\": { \"url\": \"" + articleUrl + "\" },"
+                + "    \"Date\": { \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } },"
+                + "    \"Article_Title\": { \"rich_text\": [ { \"text\": { \"content\": \"(在此手動輸入文章名稱)\" } } ] }"
+                + "},"
+                + "\"children\": ["
+                + "  { \"object\": \"block\", \"type\": \"heading_2\", \"heading_2\": { \"rich_text\": [ { \"text\": { \"content\": \"📝 今日練習摘要\" } } ] } },"
+                + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
+                + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \"關鍵單字 1: \" } } ] } },"
+                + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \"關鍵單字 2: \" } } ] } }"
+                + "]"
+                + "}";
 
+            // 4. 發射到 Notion
             sendToNotion(jsonPayload);
             System.out.println("✅ 成功！今日主題：" + selectedTag);
 
@@ -67,8 +61,10 @@ public class MediumToNotion {
         try (OutputStream os = conn.getOutputStream()) {
             os.write(jsonBody.getBytes("utf-8"));
         }
-        if (conn.getResponseCode() != 200 && conn.getResponseCode() != 201) {
-            throw new RuntimeException("Error: " + conn.getResponseCode());
+        
+        int responseCode = conn.getResponseCode();
+        if (responseCode != 200 && responseCode != 201) {
+            throw new RuntimeException("HTTP 錯誤代碼: " + responseCode);
         }
     }
 }
