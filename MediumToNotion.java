@@ -30,7 +30,7 @@ public class MediumToNotion {
             
             String articleTitle = "Daily Tech Study: [" + selectedTag.toUpperCase() + "]";
             String articleUrl = "https://medium.com/tag/" + selectedTag.toLowerCase();
-            String todayDate = LocalDate.now().toString()+ "T08:00:00.000+08:00"; 
+            String todayDate = LocalDate.now().toString(); 
 
             String jsonPayload = "{"
         + "\"parent\": { \"database_id\": \"" + DATABASE_ID + "\" },"
