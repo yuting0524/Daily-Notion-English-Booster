@@ -1,0 +1,30 @@
+name: Daily Notion English Push
+
+on:
+  schedule:
+    # 每天台灣時間早上 8 點執行 (UTC 00:00)
+    - cron: '0 0 * * *'
+  # 讓妳可以在 GitHub 網頁上手動按按鈕測試
+  workflow_dispatch:
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Compile and Run Java
+        env:
+          # 從妳設定的 GitHub Secrets 抓取鑰匙
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          DATABASE_ID: ${{ secrets.DATABASE_ID }}
+        run: |
+          javac MediumToNotion.java
+          java MediumToNotion
