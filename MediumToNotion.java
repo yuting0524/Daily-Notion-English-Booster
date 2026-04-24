@@ -6,21 +6,29 @@ import java.util.Random;
 
 public class MediumToNotion {
 
-    // 這是資安重點：從 GitHub Secrets (環境變數) 讀取密鑰，不寫死在程式碼裡
+    // 從 GitHub Secrets 讀取密鑰
     private static final String NOTION_TOKEN = System.getenv("NOTION_TOKEN");
     private static final String DATABASE_ID = System.getenv("DATABASE_ID");
 
     public static void main(String[] args) {
         try {
-            // 1. 定義妳感興趣的資管/考研主題標籤
-            String[] tags = {"Management-Information-Systems", "Algorithms", "Artificial-Intelligence", "Cybersecurity", "Software-Engineering"};
+            // 1. 妳在 Medium 看到的熱門技術標籤（已轉換為 URL 格式）
+            String[] tags = {
+                "computer-science", "programming", "technology", 
+                "software-development", "coding", "artificial-intelligence", 
+                "software-engineering", "machine-learning", "algorithms", "ai"
+            };
+            
+            // 隨機抽一個標籤
             String selectedTag = tags[new Random().nextInt(tags.length)];
             
-            String articleTitle = "Daily Tech Study: [" + selectedTag + "]";
+            // 2. 準備要送到 Notion 的內容
+            String articleTitle = "Daily Tech Study: [" + selectedTag.toUpperCase() + "]";
+            // 這裡使用 /tag/ 路徑，確保能連到 Medium 的分類頁
             String articleUrl = "https://medium.com/tag/" + selectedTag.toLowerCase();
             String todayDate = LocalDate.now().toString(); 
 
-            // 2. 建立 JSON 資料主體 (包含 Name, URL, Date 屬性，以及頁面內的練習區區塊)
+            // 3. 建立符合 Notion API 規範的 JSON (包含內容區塊)
             String jsonPayload = "{"
                 + "\"parent\": { \"database_id\": \"" + DATABASE_ID + "\" },"
                 + "\"properties\": {"
@@ -37,12 +45,11 @@ public class MediumToNotion {
                 + "]"
                 + "}";
 
-            // 3. 執行傳送邏輯
             sendToNotion(jsonPayload);
-            System.out.println("機器人執行成功！主題是: " + selectedTag);
+            System.out.println("✅ 機器人執行成功！今日主題是: " + selectedTag);
 
         } catch (Exception e) {
-            System.err.println("執行失敗，請檢查 Token 與 Database ID 是否設定正確。");
+            System.err.println("❌ 執行失敗，請檢查 Token 與 ID。");
             e.printStackTrace();
         }
     }
