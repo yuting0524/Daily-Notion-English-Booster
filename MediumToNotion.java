@@ -30,14 +30,14 @@ public class MediumToNotion {
             
             String articleTitle = "Daily Tech Study: [" + selectedTag.toUpperCase() + "]";
             String articleUrl = "https://medium.com/tag/" + selectedTag.toLowerCase();
-            String todayDate = LocalDate.now().toString(); 
+            String todayDate = LocalDate.now().toString()+ "T08:00:00.000+08:00"; 
 
             String jsonPayload = "{"
         + "\"parent\": { \"database_id\": \"" + DATABASE_ID + "\" },"
         + "\"properties\": {"
         + "    \"Name\": { \"title\": [ { \"text\": { \"content\": \"" + articleTitle + "\" } } ] },"
         + "    \"URL\": { \"url\": \"" + articleUrl + "\" },"
-        + "    \"Date\": { \"date\": { \"start\": \"" + todayDate + "\" } }," // ⬅️ 這裡要多加一個逗號
+        + "    \"Date\": { \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } },"
         + "    \"Article_Title\": { \"rich_text\": [ { \"text\": { \"content\": \"(在此手動輸入文章名稱)\" } } ] }" // ⬅️ 這是新增的欄位
         + "},"
         + "\"children\": ["
