@@ -15,15 +15,19 @@ public class MediumToNotion {
         try {
             String todayDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
-            // 1. 從 Dev.to 抓取文章
+            // 1. 抓取資料
             String devToUrl = "https://dev.to/api/articles?tag=algorithms&per_page=1";
+            System.out.println("正在從 Dev.to 抓取文章...");
             String response = fetchRawData(devToUrl);
             
-            // 2. 用原生字串處理抓取標題和網址 (免去 org.json 套件)
-            String articleTitle = extractJsonValue(response, "title");
-            String articleUrl = extractJsonValue(response, "url");
+            // 2. 強化版字串解析 (處理空格與引號)
+            String articleTitle = extractValue(response, "title");
+            String articleUrl = extractValue(response, "url");
+            
+            System.out.println("抓到標題: " + articleTitle);
+            System.out.println("抓到網址: " + articleUrl);
 
-            // 3. 組合發送給 Notion 的 JSON Payload
+            // 3. 組合 Payload (保留妳要的四大區塊)
             String jsonPayload = "{"
                 + "\"parent\": { \"database_id\": \"" + DATABASE_ID + "\" },"
                 + "\"properties\": {"
@@ -35,7 +39,7 @@ public class MediumToNotion {
                 + "\"children\": ["
                 + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ "
                 + "    { \"type\": \"mention\", \"mention\": { \"type\": \"date\", \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } } },"
-                + "    { \"type\": \"text\", \"text\": { \"content\": \" 📚 該起來讀英文囉！\" } }"
+                + "    { \"type\": \"text\", \"text\": { \"content\": \" 📚 起來讀英文囉！\" } }"
                 + "  ] } },"
                 + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
                 + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"💡 我的見解\" } } ] } },"
@@ -55,6 +59,7 @@ public class MediumToNotion {
             sendToNotion(jsonPayload);
 
         } catch (Exception e) {
+            System.err.println("發生錯誤！詳細訊息：");
             e.printStackTrace();
         }
     }
@@ -63,20 +68,25 @@ public class MediumToNotion {
         URL url = new URL(apiUrl);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
-        BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-        StringBuilder response = new StringBuilder();
-        String line;
-        while ((line = in.readLine()) != null) response.append(line);
-        in.close();
-        return response.toString();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = in.readLine()) != null) response.append(line);
+            return response.toString();
+        }
     }
 
-    // 簡易 JSON 解析：利用字串切割抓取關鍵值
-    private static String extractJsonValue(String json, String key) {
-        String pattern = "\"" + key + "\":\"";
-        int start = json.indexOf(pattern) + pattern.length();
-        int end = json.indexOf("\"", start);
-        return json.substring(start, end);
+    // 強化版的解析器：更靈活地尋找 JSON 的值
+    private static String extractValue(String json, String key) {
+        try {
+            int keyIndex = json.indexOf("\"" + key + "\"");
+            int colonIndex = json.indexOf(":", keyIndex);
+            int quoteStart = json.indexOf("\"", colonIndex);
+            int quoteEnd = json.indexOf("\"", quoteStart + 1);
+            return json.substring(quoteStart + 1, quoteEnd);
+        } catch (Exception e) {
+            return "解析失敗";
+        }
     }
 
     private static void sendToNotion(String payload) throws Exception {
@@ -90,6 +100,6 @@ public class MediumToNotion {
         try (OutputStream os = conn.getOutputStream()) {
             os.write(payload.getBytes("utf-8"));
         }
-        System.out.println("Notion Response Code: " + conn.getResponseCode());
+        System.out.println("Notion 回傳狀態碼: " + conn.getResponseCode());
     }
 }
