@@ -1,8 +1,10 @@
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.LocalDate;
-import java.util.Random;
+import java.time.format.DateTimeFormatter;
 
 public class MediumToNotion {
 
@@ -11,67 +13,73 @@ public class MediumToNotion {
 
     public static void main(String[] args) {
         try {
-            // 1. 必中標籤清單
-            String[] tags = {
-                "computer-science", "programming", "technology", 
-                "software-development", "coding", "artificial-intelligence", 
-                "software-engineering", "machine-learning", "algorithms", "ai"
-            };
+            String todayDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+            // 1. 從 Dev.to 抓取文章
+            String devToUrl = "https://dev.to/api/articles?tag=algorithms&per_page=1";
+            String response = fetchRawData(devToUrl);
             
-            // 2. 隨機抽選與標題處理
-            String selectedTag = tags[new Random().nextInt(tags.length)];
-            String articleTitle = "Daily Tech Study: [" + selectedTag.toUpperCase() + "]";
-            String articleUrl = "https://medium.com/tag/" + selectedTag.toLowerCase();
-            String todayDate = LocalDate.now().toString(); // 這裡只拿 2026-04-25
+            // 2. 用原生字串處理抓取標題和網址 (免去 org.json 套件)
+            String articleTitle = extractJsonValue(response, "title");
+            String articleUrl = extractJsonValue(response, "url");
 
-            // 3. 拼裝 JSON (確保時間格式 T08:00 只出現一次)
+            // 3. 組合發送給 Notion 的 JSON Payload
             String jsonPayload = "{"
-    + "\"parent\": { \"database_id\": \"" + DATABASE_ID + "\" },"
-    + "\"properties\": {"
-    + "    \"Name\": { \"title\": [ { \"text\": { \"content\": \"" + articleTitle + "\" } } ] },"
-    + "    \"URL\": { \"url\": \"" + articleUrl + "\" },"
-    + "    \"Date\": { \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } },"
-    + "    \"Article_Title\": { \"rich_text\": [ { \"text\": { \"content\": \"(在此手動輸入文章名稱)\" } } ] }"
-    + "},"
-    + "\"children\": ["
-    // --- 區塊 0：強制鬧鐘標籤 (讓手機 08:00 會叮一聲) ---
-    + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ "
-    + "    { \"type\": \"mention\", \"mention\": { \"type\": \"date\", \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } } },"
-    + "    { \"type\": \"text\", \"text\": { \"content\": \" 📚 起來讀英文囉！\" } }"
-    + "  ] } },"
-    + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
+                + "\"parent\": { \"database_id\": \"" + DATABASE_ID + "\" },"
+                + "\"properties\": {"
+                + "    \"Name\": { \"title\": [ { \"text\": { \"content\": \"" + articleTitle + "\" } } ] },"
+                + "    \"URL\": { \"url\": \"" + articleUrl + "\" },"
+                + "    \"Date\": { \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } },"
+                + "    \"Article_Title\": { \"rich_text\": [ { \"text\": { \"content\": \"(Dev.to 自動派送)\" } } ] }"
+                + "},"
+                + "\"children\": ["
+                + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ "
+                + "    { \"type\": \"mention\", \"mention\": { \"type\": \"date\", \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } } },"
+                + "    { \"type\": \"text\", \"text\": { \"content\": \" 📚 該起來讀英文囉！\" } }"
+                + "  ] } },"
+                + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
+                + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"💡 我的見解\" } } ] } },"
+                + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ { \"text\": { \"content\": \" \" } } ] } },"
+                + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
+                + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"📝 文章概要\" } } ] } },"
+                + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ { \"text\": { \"content\": \" \" } } ] } },"
+                + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
+                + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"✨ 特別單字\" } } ] } },"
+                + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \" \" } } ] } },"
+                + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
+                + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"📌 原文複製\" } } ] } },"
+                + "  { \"object\": \"block\", \"type\": \"quote\", \"quote\": { \"rich_text\": [ { \"text\": { \"content\": \" \" } } ] } }"
+                + "]"
+                + "}";
 
-    // --- 區塊 1：我的見解 ---
-    + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"💡 我的見解\" } } ] } },"
-    + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ { \"text\": { \"content\": \" \" } } ] } },"
-    + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
-
-    // --- 區塊 2：文章概要 ---
-    + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"📝 文章概要\" } } ] } },"
-    + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ { \"text\": { \"content\": \" \" } } ] } },"
-    + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
-
-    // --- 區塊 3：特別單字 ---
-    + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"✨ 特別單字\" } } ] } },"
-    + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \" \" } } ] } },"
-    + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
-
-    // --- 區塊 4：原文複製 ---
-    + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"📌 原文複製\" } } ] } },"
-    + "  { \"object\": \"block\", \"type\": \"quote\", \"quote\": { \"rich_text\": [ { \"text\": { \"content\": \" \" } } ] } }"
-    + "]"
-    + "}";
-
-            // 4. 發射到 Notion
             sendToNotion(jsonPayload);
-            System.out.println("✅ 成功！今日主題：" + selectedTag);
 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private static void sendToNotion(String jsonBody) throws Exception {
+    private static String fetchRawData(String apiUrl) throws Exception {
+        URL url = new URL(apiUrl);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+        StringBuilder response = new StringBuilder();
+        String line;
+        while ((line = in.readLine()) != null) response.append(line);
+        in.close();
+        return response.toString();
+    }
+
+    // 簡易 JSON 解析：利用字串切割抓取關鍵值
+    private static String extractJsonValue(String json, String key) {
+        String pattern = "\"" + key + "\":\"";
+        int start = json.indexOf(pattern) + pattern.length();
+        int end = json.indexOf("\"", start);
+        return json.substring(start, end);
+    }
+
+    private static void sendToNotion(String payload) throws Exception {
         URL url = new URL("https://api.notion.com/v1/pages");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
@@ -80,12 +88,8 @@ public class MediumToNotion {
         conn.setRequestProperty("Notion-Version", "2022-06-28");
         conn.setDoOutput(true);
         try (OutputStream os = conn.getOutputStream()) {
-            os.write(jsonBody.getBytes("utf-8"));
+            os.write(payload.getBytes("utf-8"));
         }
-        
-        int responseCode = conn.getResponseCode();
-        if (responseCode != 200 && responseCode != 201) {
-            throw new RuntimeException("HTTP 錯誤代碼: " + responseCode);
-        }
+        System.out.println("Notion Response Code: " + conn.getResponseCode());
     }
 }
