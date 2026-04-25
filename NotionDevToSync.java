@@ -105,7 +105,8 @@ public class NotionDevToSync {
             topic      = candidate;
             topicLabel = TOPIC_LABELS.getOrDefault(topic, topic);
 
-            String devToUrl = "https://dev.to/api/articles?tag=" + topic + "&top=7&per_page=7";
+            // top=N 是「本週熱門」，dev.to 週榜更新不穩定，改用最新文章避免空回傳
+            String devToUrl = "https://dev.to/api/articles?tag=" + topic + "&per_page=10&state=rising";
             HttpRequest devToRequest = HttpRequest.newBuilder()
                     .uri(URI.create(devToUrl))
                     .header("Accept", "application/json")
