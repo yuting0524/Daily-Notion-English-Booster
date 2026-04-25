@@ -26,5 +26,5 @@ jobs:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           DATABASE_ID: ${{ secrets.DATABASE_ID }}
         run: |
-          javac MediumToNotion.java
-          java MediumToNotion
+          javac NotionDevToSync.java
+          java NotionDevToSync
