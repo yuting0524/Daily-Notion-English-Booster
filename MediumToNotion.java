@@ -26,20 +26,27 @@ public class MediumToNotion {
 
             // 3. 拼裝 JSON (確保時間格式 T08:00 只出現一次)
             String jsonPayload = "{"
-                + "\"parent\": { \"database_id\": \"" + DATABASE_ID + "\" },"
-                + "\"properties\": {"
-                + "    \"Name\": { \"title\": [ { \"text\": { \"content\": \"" + articleTitle + "\" } } ] },"
-                + "    \"URL\": { \"url\": \"" + articleUrl + "\" },"
-                + "    \"Date\": { \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } },"
-                + "    \"Article_Title\": { \"rich_text\": [ { \"text\": { \"content\": \"(在此手動輸入文章名稱)\" } } ] }"
-                + "},"
-                + "\"children\": ["
-                + "  { \"object\": \"block\", \"type\": \"heading_2\", \"heading_2\": { \"rich_text\": [ { \"text\": { \"content\": \"📝 今日練習摘要\" } } ] } },"
-                + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
-                + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \"關鍵單字 1: \" } } ] } },"
-                + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \"關鍵單字 2: \" } } ] } }"
-                + "]"
-                + "}";
+    + "\"parent\": { \"database_id\": \"" + DATABASE_ID + "\" },"
+    + "\"properties\": {"
+    + "    \"Name\": { \"title\": [ { \"text\": { \"content\": \"" + articleTitle + "\" } } ] },"
+    + "    \"URL\": { \"url\": \"" + articleUrl + "\" },"
+    + "    \"Date\": { \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } },"
+    + "    \"Article_Title\": { \"rich_text\": [ { \"text\": { \"content\": \"(在此手動輸入文章名稱)\" } } ] }"
+    + "},"
+    + "\"children\": ["
+    // --- 這裡就是「強制鬧鐘」標籤，Notion 看到這個才會叮妳 ---
+    + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ "
+    + "    { \"type\": \"mention\", \"mention\": { \"type\": \"date\", \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } } },"
+    + "    { \"type\": \"text\", \"text\": { \"content\": \" 📚 起來讀英文囉！技術文章已送達。\" } }"
+    + "  ] } },"
+    + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
+    // --- 以下是妳原本的摘要內容 ---
+    + "  { \"object\": \"block\", \"type\": \"heading_2\", \"heading_2\": { \"rich_text\": [ { \"text\": { \"content\": \"📝 今日練習摘要\" } } ] } },"
+    + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
+    + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \"關鍵單字 1: \" } } ] } },"
+    + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \"關鍵單字 2: \" } } ] } }"
+    + "]"
+    + "}";
 
             // 4. 發射到 Notion
             sendToNotion(jsonPayload);
