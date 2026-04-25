@@ -10,28 +10,38 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * MIS 自動化練習系統 v3
+ * MIS 自動化練習系統 v4
  *
- * 三個免費來源輪流使用，互相 fallback：
- *   1. dev.to        — 技術文章 (state=fresh，不用 top= 避免空回傳)
- *   2. Hacker News   — 科技 / 創業 / CS 精選
- *   3. Wikipedia     — 每日精選文章（英文知識廣度極高）
+ * 主來源：arXiv API（學術論文，免費無需 key）
+ * 備援：Hacker News → Wikipedia
  *
- * 環境變數：
- *   NOTION_TOKEN  - Notion Integration Token
- *   DATABASE_ID   - Notion Database ID
+ * arXiv 分類：
+ *   cs.AI   — Artificial Intelligence
+ *   cs.LG   — Machine Learning
+ *   cs.SE   — Software Engineering
+ *   cs.IR   — Information Retrieval (MIS 核心)
+ *   cs.CY   — Computers & Society
+ *   cs.HC   — Human-Computer Interaction
+ *   econ.GN — General Economics
+ *   stat.ML — Statistics / ML
+ *
+ * 環境變數：NOTION_TOKEN, DATABASE_ID
  */
 public class NotionDevToSync {
 
-    private static final Random RANDOM = new Random();
+    private static final Random     RANDOM = new Random();
     private static final HttpClient CLIENT = HttpClient.newHttpClient();
 
-    // ── dev.to 主題（已驗證 slug 存在）──────────────────────────────────────
-    private static final List<String> DEVTO_TAGS = List.of(
-        "javascript", "python", "webdev", "programming",
-        "ai", "machinelearning", "computerscience", "architecture",
-        "opensource", "productivity", "startup", "product",
-        "agile", "career", "learning", "tutorial", "devops"
+    // ── arXiv 分類清單 ────────────────────────────────────────────────────────
+    private static final List<String[]> ARXIV_CATS = List.of(
+        new String[]{"cs.AI",   "🤖 Artificial Intelligence"},
+        new String[]{"cs.LG",   "🧠 Machine Learning"},
+        new String[]{"cs.SE",   "💻 Software Engineering"},
+        new String[]{"cs.IR",   "🗂 Information Retrieval"},
+        new String[]{"cs.CY",   "🌐 Computers & Society"},
+        new String[]{"cs.HC",   "🖱 Human-Computer Interaction"},
+        new String[]{"econ.GN", "📈 General Economics"},
+        new String[]{"stat.ML", "📊 Statistics / ML"}
     );
 
     public static void main(String[] args) throws Exception {
@@ -43,33 +53,26 @@ public class NotionDevToSync {
         if (databaseId == null || databaseId.isBlank())
             throw new IllegalStateException("❌ 缺少環境變數 DATABASE_ID");
 
-        // ── 隨機決定先試哪個來源，失敗自動換下一個 ─────────────────────────
-        List<Integer> order = new ArrayList<>(List.of(0, 1, 2));
-        Collections.shuffle(order, RANDOM);
-
+        // ── 依序嘗試三個來源 ─────────────────────────────────────────────────
         Article article = null;
-        for (int source : order) {
-            System.out.println("📡 嘗試來源 [" + sourceName(source) + "]...");
-            try {
-                article = switch (source) {
-                    case 0 -> fetchFromDevTo();
-                    case 1 -> fetchFromHackerNews();
-                    case 2 -> fetchFromWikipedia();
-                    default -> null;
-                };
-            } catch (Exception e) {
-                System.out.println("⚠️  來源失敗：" + e.getMessage());
-            }
-            if (article != null) {
-                System.out.println("✅ 成功取得文章來自 [" + sourceName(source) + "]");
-                break;
-            }
-            System.out.println("⚠️  來源無結果，換下一個...");
+
+        System.out.println("📡 嘗試來源 [arXiv]...");
+        try { article = fetchFromArxiv(); } catch (Exception e) { System.out.println("⚠️  arXiv 失敗：" + e.getMessage()); }
+
+        if (article == null) {
+            System.out.println("📡 嘗試來源 [Hacker News]...");
+            try { article = fetchFromHackerNews(); } catch (Exception e) { System.out.println("⚠️  HN 失敗：" + e.getMessage()); }
+        }
+
+        if (article == null) {
+            System.out.println("📡 嘗試來源 [Wikipedia]...");
+            try { article = fetchFromWikipedia(); } catch (Exception e) { System.out.println("⚠️  Wikipedia 失敗：" + e.getMessage()); }
         }
 
         if (article == null)
-            throw new RuntimeException("❌ 三個來源都失敗了，請檢查網路或 API");
+            throw new RuntimeException("❌ 三個來源都失敗，請檢查網路");
 
+        System.out.println("✅ 來源：" + article.source);
         System.out.println("📰 標題：" + article.title);
         System.out.println("🔗 網址：" + article.url);
         System.out.println("🏷  標籤：" + article.tags);
@@ -78,7 +81,6 @@ public class NotionDevToSync {
         String today    = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
         String dateTime = today + "T08:00:00.000+08:00";
 
-        // ── 組 Notion Request Body ────────────────────────────────────────────
         String safeTitle = escapeJson(article.title);
         String safeUrl   = escapeJson(article.url);
         String safeRich  = escapeJson(article.source + "  |  " + article.tags);
@@ -93,27 +95,21 @@ public class NotionDevToSync {
             "    \"Article_Title\": { \"rich_text\": [{ \"text\": { \"content\": \"" + safeRich + "\" } }] }\n" +
             "  },\n" +
             "  \"children\": [\n" +
-            // @remind mention
             "    { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [\n" +
             "      { \"type\": \"mention\", \"mention\": { \"type\": \"date\", \"date\": { \"start\": \"" + dateTime + "\" } }, \"annotations\": { \"color\": \"blue_background\" } },\n" +
             "      { \"type\": \"text\", \"text\": { \"content\": \"  📚 起來練習 MIS 囉！\" } }\n" +
             "    ] } },\n" +
             "    { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },\n" +
-            heading3Block("💡 我的見解") + ",\n" +
-            emptyParagraph() + ",\n" +
+            h3("💡 我的見解") + ",\n" + emptyP() + ",\n" +
             "    { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },\n" +
-            heading3Block("📝 文章概要") + ",\n" +
-            emptyParagraph() + ",\n" +
+            h3("📝 文章概要") + ",\n" + emptyP() + ",\n" +
             "    { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },\n" +
-            heading3Block("✨ 特別單字") + ",\n" +
-            emptyParagraph() + ",\n" +
+            h3("✨ 特別單字") + ",\n" + emptyP() + ",\n" +
             "    { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },\n" +
-            heading3Block("📌 原文複製") + ",\n" +
-            emptyParagraph() + "\n" +
+            h3("📌 原文複製") + ",\n" + emptyP() + "\n" +
             "  ]\n" +
             "}";
 
-        // ── 呼叫 Notion API ───────────────────────────────────────────────────
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create("https://api.notion.com/v1/pages"))
                 .header("Authorization", "Bearer " + notionToken)
@@ -138,134 +134,178 @@ public class NotionDevToSync {
     }
 
     // ════════════════════════════════════════════════════════
-    //  來源 1：dev.to  (state=fresh 避免 top= 空回傳)
+    //  來源 1：arXiv  (Atom/XML，免費無需 key)
+    //  API 文件：https://arxiv.org/help/api
     // ════════════════════════════════════════════════════════
-    private static Article fetchFromDevTo() throws Exception {
-        // 打亂 tag 順序，最多嘗試 6 個
-        List<String> tags = new ArrayList<>(DEVTO_TAGS);
-        Collections.shuffle(tags, RANDOM);
+    private static Article fetchFromArxiv() throws Exception {
+        // 隨機選一個分類
+        List<String[]> cats = new ArrayList<>(ARXIV_CATS);
+        Collections.shuffle(cats, RANDOM);
+        String[] chosen = cats.get(0);
+        String catId    = chosen[0];
+        String catLabel = chosen[1];
 
-        for (String tag : tags.subList(0, Math.min(6, tags.size()))) {
-            String url = "https://dev.to/api/articles?tag=" + tag
-                       + "&per_page=12&state=fresh";
-            String resp = get(url);
-            List<String> items = splitJsonArray(resp);
-            if (items.isEmpty()) continue;
+        // start 隨機偏移，增加多樣性（arXiv 每天有大量新論文）
+        int start = RANDOM.nextInt(30);
+        String url = "https://export.arxiv.org/api/query"
+                   + "?search_query=cat:" + catId
+                   + "&sortBy=submittedDate&sortOrder=descending"
+                   + "&start=" + start + "&max_results=10";
 
-            String item  = items.get(RANDOM.nextInt(items.size()));
-            String title = extractStr(item, "title");
-            String link  = extractStr(item, "url");
-            String tags2 = extractTagArray(item);
-            if (title.isBlank() || link.isBlank()) continue;
+        System.out.println("   分類：" + catLabel + " (" + catId + ")，offset=" + start);
+        String xml = get(url);
 
-            return new Article(title, link, tags2, "dev.to / " + tag);
+        // 解析 Atom XML：抓所有 <entry> 區塊
+        List<String> entries = splitXmlEntries(xml);
+        if (entries.isEmpty()) return null;
+
+        // 隨機選一篇
+        Collections.shuffle(entries, RANDOM);
+        for (String entry : entries) {
+            String title    = xmlTag(entry, "title").replaceAll("\\s+", " ").trim();
+            String arxivUrl = xmlAttr(entry, "rel=\"related\"", "href");
+            // 備援：從 <id> 取連結
+            if (arxivUrl.isBlank()) {
+                String id = xmlTag(entry, "id").trim();
+                if (!id.isBlank()) arxivUrl = id.replace("http://", "https://");
+            }
+            // 把 /abs/ 換成 abs（有時 API 回傳 /pdf/）
+            arxivUrl = arxivUrl.replace("/pdf/", "/abs/");
+            if (title.isBlank() || arxivUrl.isBlank()) continue;
+
+            // 取作者（前兩位）
+            List<String> authors = xmlTagAll(entry, "name");
+            String authorStr = authors.isEmpty() ? "" :
+                authors.size() == 1 ? authors.get(0) :
+                authors.get(0) + " et al.";
+
+            String tags = catLabel + (authorStr.isBlank() ? "" : " · " + authorStr);
+            return new Article(title, arxivUrl, tags, "arXiv / " + catId);
         }
         return null;
     }
 
     // ════════════════════════════════════════════════════════
-    //  來源 2：Hacker News  (官方免費 API，無需 key)
-    //  策略：抓 topstories 前 100，隨機選 5 篇試著取詳細資料
+    //  來源 2：Hacker News
     // ════════════════════════════════════════════════════════
     private static Article fetchFromHackerNews() throws Exception {
         String listResp = get("https://hacker-news.firebaseio.com/v0/topstories.json");
-        // 回傳是純數字陣列 [123,456,...]
         List<String> ids = new ArrayList<>();
-        for (String tok : listResp.replaceAll("[\\[\\]\\s]", "").split(",")) {
+        for (String tok : listResp.replaceAll("[\\[\\]\\s]", "").split(","))
             if (!tok.isBlank()) ids.add(tok.trim());
-        }
         if (ids.isEmpty()) return null;
 
-        // 從前 100 篇隨機挑，找到第一篇有 url 的文章（部分是 Ask HN，沒有外部連結）
         Collections.shuffle(ids.subList(0, Math.min(100, ids.size())), RANDOM);
         for (String id : ids.subList(0, Math.min(15, ids.size()))) {
             String detail = get("https://hacker-news.firebaseio.com/v0/item/" + id + ".json");
             String title  = extractStr(detail, "title");
             String link   = extractStr(detail, "url");
-            if (title.isBlank() || link.isBlank()) continue; // 跳過 Ask HN 等無外連文章
+            if (title.isBlank() || link.isBlank()) continue;
             return new Article(title, link, "Hacker News Top Story", "Hacker News");
         }
         return null;
     }
 
     // ════════════════════════════════════════════════════════
-    //  來源 3：Wikipedia  每日精選文章 (Featured Content API)
-    //  永遠有內容，當其他來源都掛掉的最終保底
+    //  來源 3：Wikipedia 每日精選
     // ════════════════════════════════════════════════════════
     private static Article fetchFromWikipedia() throws Exception {
         String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
-        String url   = "https://en.wikipedia.org/api/rest_v1/feed/featured/" + today;
-        String resp  = get(url);
+        String resp  = get("https://en.wikipedia.org/api/rest_v1/feed/featured/" + today);
 
-        // 嘗試取 tfa (Today's Featured Article)
         String tfaBlock = extractBlock(resp, "\"tfa\"");
         if (!tfaBlock.isBlank()) {
-            String title      = extractStr(tfaBlock, "normalizedtitle");
+            String title = extractStr(tfaBlock, "normalizedtitle");
             if (title.isBlank()) title = extractStr(tfaBlock, "title");
-            String pageLink   = extractStr(tfaBlock, "content_urls");
-            // content_urls 是物件，直接從裡面抓 desktop page
             String desktopBlock = extractBlock(resp.substring(resp.indexOf("\"tfa\"")), "\"desktop\"");
             String link = extractStr(desktopBlock, "page");
             if (link.isBlank()) link = "https://en.wikipedia.org/wiki/" + title.replace(" ", "_");
-            if (!title.isBlank()) {
-                String description = extractStr(tfaBlock, "description");
-                String tags = description.isBlank() ? "Wikipedia Featured Article" : description;
-                // 截短 description 避免太長
-                if (tags.length() > 80) tags = tags.substring(0, 77) + "...";
-                return new Article(title, link, tags, "Wikipedia Featured");
-            }
-        }
-
-        // fallback: 抓 On This Day 的第一篇
-        String onThisDay = extractBlock(resp, "\"onthisday\"");
-        if (!onThisDay.isBlank()) {
-            String text = extractStr(onThisDay, "text");
-            String link = "https://en.wikipedia.org/wiki/Wikipedia:On_this_day/Today";
-            if (!text.isBlank()) {
-                if (text.length() > 100) text = text.substring(0, 97) + "...";
-                return new Article(text, link, "Wikipedia On This Day", "Wikipedia");
-            }
+            String desc = extractStr(tfaBlock, "description");
+            if (desc.length() > 80) desc = desc.substring(0, 77) + "...";
+            if (!title.isBlank())
+                return new Article(title, link, desc.isBlank() ? "Wikipedia Featured Article" : desc, "Wikipedia Featured");
         }
         return null;
     }
 
     // ════════════════════════════════════════════════════════
-    //  HTTP GET
-    // ════════════════════════════════════════════════════════
-    private static String get(String url) throws Exception {
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Accept", "application/json")
-                .header("User-Agent", "MIS-Practice-Bot/3.0")
-                .GET().build();
-        HttpResponse<String> res = CLIENT.send(req, HttpResponse.BodyHandlers.ofString());
-        if (res.statusCode() >= 400)
-            throw new RuntimeException("HTTP " + res.statusCode() + " for " + url);
-        return res.body();
-    }
-
-    // ════════════════════════════════════════════════════════
-    //  JSON 工具（不依賴第三方函式庫）
+    //  XML 工具（arXiv 回傳 Atom XML）
     // ════════════════════════════════════════════════════════
 
-    /** 將頂層 JSON 陣列拆成個別物件字串 */
-    private static List<String> splitJsonArray(String json) {
+    /** 拆分 <entry>...</entry> 區塊 */
+    private static List<String> splitXmlEntries(String xml) {
         List<String> result = new ArrayList<>();
-        json = json.trim();
-        if (!json.startsWith("[")) return result;
-        int depth = 0, start = -1;
-        boolean inStr = false;
-        for (int i = 0; i < json.length(); i++) {
-            char c = json.charAt(i);
-            if (c == '"' && (i == 0 || json.charAt(i-1) != '\\')) inStr = !inStr;
-            if (inStr) continue;
-            if (c == '{') { if (depth++ == 0) start = i; }
-            else if (c == '}') { if (--depth == 0 && start != -1) { result.add(json.substring(start, i+1)); start = -1; } }
+        int pos = 0;
+        while (true) {
+            int start = xml.indexOf("<entry>", pos);
+            if (start < 0) break;
+            int end = xml.indexOf("</entry>", start);
+            if (end < 0) break;
+            result.add(xml.substring(start, end + 8));
+            pos = end + 8;
         }
         return result;
     }
 
-    /** 取出 key 對應的字串值 */
+    /** 取第一個 <tag>content</tag> 的文字內容（去掉巢狀 tag）*/
+    private static String xmlTag(String xml, String tag) {
+        String open  = "<" + tag + ">";
+        String close = "</" + tag + ">";
+        int s = xml.indexOf(open);
+        if (s < 0) {
+            // 嘗試有 attribute 的 tag，例如 <title type="text">
+            s = xml.indexOf("<" + tag + " ");
+            if (s < 0) return "";
+            s = xml.indexOf(">", s);
+            if (s < 0) return "";
+            s++; // skip >
+        } else {
+            s += open.length();
+        }
+        int e = xml.indexOf(close, s);
+        if (e < 0) return "";
+        // 去掉內層 XML tag
+        return xml.substring(s, e).replaceAll("<[^>]+>", "").trim();
+    }
+
+    /** 取特定 attribute 的值，例如 rel="related" 旁的 href */
+    private static String xmlAttr(String xml, String attrMatch, String attrName) {
+        int idx = xml.indexOf(attrMatch);
+        if (idx < 0) return "";
+        // 往回找 < 確認是同一個 tag
+        int tagStart = xml.lastIndexOf("<", idx);
+        int tagEnd   = xml.indexOf(">", idx);
+        if (tagStart < 0 || tagEnd < 0) return "";
+        String tag = xml.substring(tagStart, tagEnd + 1);
+        int ai = tag.indexOf(attrName + "=\"");
+        if (ai < 0) return "";
+        int vs = ai + attrName.length() + 2;
+        int ve = tag.indexOf("\"", vs);
+        if (ve < 0) return "";
+        return tag.substring(vs, ve);
+    }
+
+    /** 取所有同名 tag 的文字內容（例如多個 <name>）*/
+    private static List<String> xmlTagAll(String xml, String tag) {
+        List<String> result = new ArrayList<>();
+        String open  = "<" + tag + ">";
+        String close = "</" + tag + ">";
+        int pos = 0;
+        while (true) {
+            int s = xml.indexOf(open, pos);
+            if (s < 0) break;
+            s += open.length();
+            int e = xml.indexOf(close, s);
+            if (e < 0) break;
+            result.add(xml.substring(s, e).trim());
+            pos = e + close.length();
+        }
+        return result;
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  JSON 工具
+    // ════════════════════════════════════════════════════════
     private static String extractStr(String json, String key) {
         int ki = json.indexOf("\"" + key + "\"");
         if (ki < 0) return "";
@@ -277,16 +317,20 @@ public class NotionDevToSync {
         for (int i = vs + 1; i < json.length(); i++) {
             char c = json.charAt(i);
             if (c == '\\' && i+1 < json.length()) {
-                char n = json.charAt(i+1);
-                switch(n) { case '"': sb.append('"'); case '\\': sb.append('\\'); case 'n': sb.append('\n'); case 't': sb.append('\t'); default: sb.append(c); }
-                i++;
+                char n = json.charAt(++i);
+                switch(n) {
+                    case '"'  -> sb.append('"');
+                    case '\\' -> sb.append('\\');
+                    case 'n'  -> sb.append('\n');
+                    case 't'  -> sb.append('\t');
+                    default   -> { sb.append('\\'); sb.append(n); }
+                }
             } else if (c == '"') break;
             else sb.append(c);
         }
         return sb.toString();
     }
 
-    /** 取出某個 key 後面的整個物件 block（用於巢狀解析）*/
     private static String extractBlock(String json, String keyPattern) {
         int ki = json.indexOf(keyPattern);
         if (ki < 0) return "";
@@ -294,56 +338,44 @@ public class NotionDevToSync {
         if (ci < 0) return "";
         int bs = json.indexOf("{", ci);
         if (bs < 0) return "";
-        int depth = 0, end = bs;
+        int depth = 0;
         for (int i = bs; i < json.length(); i++) {
             char c = json.charAt(i);
             if (c == '{') depth++;
-            else if (c == '}') { if (--depth == 0) { end = i; break; } }
+            else if (c == '}' && --depth == 0) return json.substring(bs, i + 1);
         }
-        return json.substring(bs, end + 1);
+        return "";
     }
 
-    /** 從 dev.to 回應取出 tag_list */
-    private static String extractTagArray(String json) {
-        int idx = json.indexOf("\"tag_list\"");
-        if (idx < 0) return "general";
-        int as = json.indexOf("[", idx);
-        int ae = json.indexOf("]", as);
-        if (as < 0 || ae < 0) return "general";
-        String arr = json.substring(as+1, ae).trim();
-        if (arr.isBlank()) return "general";
-        List<String> tags = new ArrayList<>();
-        int pos = 0;
-        while (pos < arr.length()) {
-            int q1 = arr.indexOf('"', pos); if (q1 < 0) break;
-            int q2 = arr.indexOf('"', q1+1); if (q2 < 0) break;
-            tags.add(arr.substring(q1+1, q2));
-            pos = q2 + 1;
-        }
-        return tags.isEmpty() ? "general" : String.join(", ", tags);
+    // ════════════════════════════════════════════════════════
+    //  HTTP GET
+    // ════════════════════════════════════════════════════════
+    private static String get(String url) throws Exception {
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Accept", "*/*")
+                .header("User-Agent", "MIS-Practice-Bot/4.0")
+                .GET().build();
+        HttpResponse<String> res = CLIENT.send(req, HttpResponse.BodyHandlers.ofString());
+        if (res.statusCode() >= 400)
+            throw new RuntimeException("HTTP " + res.statusCode() + " → " + url);
+        return res.body();
     }
 
     // ════════════════════════════════════════════════════════
     //  Notion Block 輔助
     // ════════════════════════════════════════════════════════
-    private static String heading3Block(String text) {
+    private static String h3(String text) {
         return "    { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [{ \"type\": \"text\", \"text\": { \"content\": \"" + escapeJson(text) + "\" } }] } }";
     }
-    private static String emptyParagraph() {
+    private static String emptyP() {
         return "    { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [] } }";
     }
-
-    /** JSON 字串轉義 */
     private static String escapeJson(String s) {
         if (s == null) return "";
         return s.replace("\\", "\\\\").replace("\"", "\\\"")
                 .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
     }
 
-    private static String sourceName(int i) {
-        return switch(i) { case 0 -> "dev.to"; case 1 -> "Hacker News"; case 2 -> "Wikipedia"; default -> "?"; };
-    }
-
-    // ── 資料容器 ─────────────────────────────────────────────────────────────
     record Article(String title, String url, String tags, String source) {}
 }
