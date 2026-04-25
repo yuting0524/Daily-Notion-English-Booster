@@ -10,26 +10,27 @@ public class DevToToNotion {
         try {
             HttpClient client = HttpClient.newHttpClient();
 
-            // 1. 從 dev.to 抓取最新的熱門文章 (這裡設為抓取 'management' 標籤相關的文章)
-            HttpRequest devToRequest = HttpRequest.newBuilder()
+            // 1. MIS 練習：從 API 自動抓取技術文章 (不手動找，讓程式找)
+            // 我們抓 'management' 或 'productivity' 標籤的文章來練習
+            HttpRequest devRequest = HttpRequest.newBuilder()
                 .uri(URI.create("https://dev.to/api/articles?tag=management&top=1"))
                 .GET()
                 .build();
 
-            HttpResponse<String> devToResponse = client.send(devToRequest, HttpResponse.BodyHandlers.ofString());
-            String responseBody = devToResponse.body();
+            HttpResponse<String> devResponse = client.send(devRequest, HttpResponse.BodyHandlers.ofString());
+            String body = devResponse.body();
 
-            // 2. 簡易解析 dev.to 回傳的資料 (這裡建議用原本妳熟悉的抓取方式，以下為簡化邏輯)
-            // 抓出標題、網址與標籤 (tags)
-            String articleTitle = responseBody.split("\"title\":\"")[1].split("\",")[0];
-            String articleUrl = responseBody.split("\"url\":\"")[1].split("\",")[0];
-            String tags = responseBody.split("\"tags\":\"")[1].split("\",")[0];
+            // 2. 簡易解析 (MIS 重點：提取關鍵標籤)
+            // 這裡從 JSON 陣列中抓出第一篇文章的標題、網址與標籤
+            String articleTitle = body.split("\"title\":\"")[1].split("\",")[0];
+            String articleUrl = body.split("\"url\":\"")[1].split("\",")[0];
+            String tags = body.split("\"tags\":\"")[1].split("\",")[0];
 
-            // 處理特殊字元轉義 (預防 JSON 崩潰)
-            String safeTitle = articleTitle.replace("\"", "\\\"");
+            // 3. 處理特殊字元 (轉義)
+            String safeTitle = articleTitle.replace("\\", "\\\\").replace("\"", "\\\"");
             String todayDate = LocalDate.now().format(DateTimeFormatter.ISO_DATE);
 
-            // 3. 組合發送給 Notion 的 JSON
+            // 4. 發送至 Notion
             String notionToken = System.getenv("NOTION_TOKEN");
             String databaseId = System.getenv("DATABASE_ID");
 
@@ -39,14 +40,16 @@ public class DevToToNotion {
                 + "    \"Name\": { \"title\": [ { \"text\": { \"content\": \"" + safeTitle + "\" } } ] },"
                 + "    \"URL\": { \"url\": \"" + articleUrl + "\" },"
                 + "    \"Date\": { \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } },"
-                + "    \"Article_Title\": { \"rich_text\": [ { \"text\": { \"content\": \"Tags: " + tags + "\" } } ] }"
+                + "    \"Article_Title\": { \"rich_text\": [ { \"text\": { \"content\": \"標籤: " + tags + "\" } } ] }"
                 + "},"
                 + "\"children\": ["
+                // 強制提醒鬧鐘
                 + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ "
                 + "    { \"type\": \"mention\", \"mention\": { \"type\": \"date\", \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } } },"
-                + "    { \"text\": { \"content\": \" 📚 起來練習 MIS 囉！文章標籤：" + tags + "\" } } "
+                + "    { \"text\": { \"content\": \" 📚 起來練習 MIS 囉！今天的標籤是：" + tags + "\" } } "
                 + "  ] } },"
                 + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
+                // 妳要求的四個練習區塊
                 + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"💡 我的見解\" } } ] } },"
                 + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ { \"text\": { \"content\": \" \" } } ] } },"
                 + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
@@ -61,7 +64,6 @@ public class DevToToNotion {
                 + "]"
                 + "}";
 
-            // 4. 發送至 Notion API
             HttpRequest notionRequest = HttpRequest.newBuilder()
                 .uri(URI.create("https://api.notion.com/v1/pages"))
                 .header("Authorization", "Bearer " + notionToken)
@@ -71,8 +73,8 @@ public class DevToToNotion {
                 .build();
 
             HttpResponse<String> response = client.send(notionRequest, HttpResponse.BodyHandlers.ofString());
-            System.out.println("Status: " + response.statusCode());
-            System.out.println("Body: " + response.body());
+            System.out.println("Notion 回應碼: " + response.statusCode());
+            System.out.println("回應內容: " + response.body());
 
         } catch (Exception e) {
             e.printStackTrace();
