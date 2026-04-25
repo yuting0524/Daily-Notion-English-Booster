@@ -4,33 +4,47 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Random;
 
 public class DevToToNotion {
+
     public static void main(String[] args) {
         try {
+            // 1. 定義專業主題庫 (這些標籤在 dev.to 上通常產出高品質長文)
+            String[] tagsPool = {
+                "systemdesign", "database", "webdev", "devops", 
+                "career", "performance", "security", "testing"
+            };
+            
+            String selectedTag = tagsPool[new Random().nextInt(tagsPool.length)];
             HttpClient client = HttpClient.newHttpClient();
 
-            // 1. MIS 練習：從 API 自動抓取技術文章 (不手動找，讓程式找)
-            // 我們抓 'management' 或 'productivity' 標籤的文章來練習
+            // 2. MIS 邏輯：抓取該主題下「本週最強 (top=7)」的前 10 篇文章
+            // 這樣可以過濾掉剛發布的隨手筆記
             HttpRequest devRequest = HttpRequest.newBuilder()
-                .uri(URI.create("https://dev.to/api/articles?tag=management&top=1"))
+                .uri(URI.create("https://dev.to/api/articles?tag=" + selectedTag + "&top=7&per_page=10"))
                 .GET()
                 .build();
 
             HttpResponse<String> devResponse = client.send(devRequest, HttpResponse.BodyHandlers.ofString());
             String body = devResponse.body();
 
-            // 2. 簡易解析 (MIS 重點：提取關鍵標籤)
-            // 這裡從 JSON 陣列中抓出第一篇文章的標題、網址與標籤
-            String articleTitle = body.split("\"title\":\"")[1].split("\",")[0];
-            String articleUrl = body.split("\"url\":\"")[1].split("\",")[0];
-            String tags = body.split("\"tags\":\"")[1].split("\",")[0];
+            // 3. 從回傳的「菁英清單」中隨機挑選一筆，增加多樣性
+            // (簡單用 split 拆分 JSON 陣列中的物件)
+            String[] articles = body.split("\\{\"type_of\":\"article\""); 
+            int randomIndex = new Random().nextInt(articles.length - 1) + 1;
+            String pickedArticle = articles[randomIndex];
 
-            // 3. 處理特殊字元 (轉義)
-            String safeTitle = articleTitle.replace("\\", "\\\\").replace("\"", "\\\"");
+            // 4. 提取關鍵資訊
+            String title = pickedArticle.split("\"title\":\"")[1].split("\",")[0];
+            String url = pickedArticle.split("\"url\":\"")[1].split("\",")[0];
+            String tags = pickedArticle.split("\"tags\":\"")[1].split("\",")[0];
+
+            // 轉義處理
+            String safeTitle = title.replace("\\", "\\\\").replace("\"", "\\\"");
             String todayDate = LocalDate.now().format(DateTimeFormatter.ISO_DATE);
 
-            // 4. 發送至 Notion
+            // 5. 組合 Notion Payload
             String notionToken = System.getenv("NOTION_TOKEN");
             String databaseId = System.getenv("DATABASE_ID");
 
@@ -38,18 +52,16 @@ public class DevToToNotion {
                 + "\"parent\": { \"database_id\": \"" + databaseId + "\" },"
                 + "\"properties\": {"
                 + "    \"Name\": { \"title\": [ { \"text\": { \"content\": \"" + safeTitle + "\" } } ] },"
-                + "    \"URL\": { \"url\": \"" + articleUrl + "\" },"
+                + "    \"URL\": { \"url\": \"" + url + "\" },"
                 + "    \"Date\": { \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } },"
-                + "    \"Article_Title\": { \"rich_text\": [ { \"text\": { \"content\": \"標籤: " + tags + "\" } } ] }"
+                + "    \"Article_Title\": { \"rich_text\": [ { \"text\": { \"content\": \"主題: " + selectedTag.toUpperCase() + " | 標籤: " + tags + "\" } } ] }"
                 + "},"
                 + "\"children\": ["
-                // 強制提醒鬧鐘
                 + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ "
                 + "    { \"type\": \"mention\", \"mention\": { \"type\": \"date\", \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } } },"
-                + "    { \"text\": { \"content\": \" 📚 起來練習 MIS 囉！今天的標籤是：" + tags + "\" } } "
+                + "    { \"text\": { \"content\": \" 🚀 今日 MIS 練習：從 " + selectedTag + " 菁英榜中選出\" } } "
                 + "  ] } },"
                 + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
-                // 妳要求的四個練習區塊
                 + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"💡 我的見解\" } } ] } },"
                 + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ { \"text\": { \"content\": \" \" } } ] } },"
                 + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
@@ -64,6 +76,7 @@ public class DevToToNotion {
                 + "]"
                 + "}";
 
+            // 6. 發送
             HttpRequest notionRequest = HttpRequest.newBuilder()
                 .uri(URI.create("https://api.notion.com/v1/pages"))
                 .header("Authorization", "Bearer " + notionToken)
@@ -72,9 +85,7 @@ public class DevToToNotion {
                 .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
                 .build();
 
-            HttpResponse<String> response = client.send(notionRequest, HttpResponse.BodyHandlers.ofString());
-            System.out.println("Notion 回應碼: " + response.statusCode());
-            System.out.println("回應內容: " + response.body());
+            client.send(notionRequest, HttpResponse.BodyHandlers.ofString());
 
         } catch (Exception e) {
             e.printStackTrace();
