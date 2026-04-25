@@ -34,17 +34,31 @@ public class MediumToNotion {
     + "    \"Article_Title\": { \"rich_text\": [ { \"text\": { \"content\": \"(在此手動輸入文章名稱)\" } } ] }"
     + "},"
     + "\"children\": ["
-    // --- 這裡就是「強制鬧鐘」標籤，Notion 看到這個才會叮妳 ---
+    // --- 區塊 0：強制鬧鐘標籤 (讓手機 08:00 會叮一聲) ---
     + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ "
     + "    { \"type\": \"mention\", \"mention\": { \"type\": \"date\", \"date\": { \"start\": \"" + todayDate + "T08:00:00.000+08:00\" } } },"
-    + "    { \"type\": \"text\", \"text\": { \"content\": \" 📚 起來讀英文囉！技術文章已送達。\" } }"
+    + "    { \"type\": \"text\", \"text\": { \"content\": \" 📚 起來讀英文囉！\" } }"
     + "  ] } },"
     + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
-    // --- 以下是妳原本的摘要內容 ---
-    + "  { \"object\": \"block\", \"type\": \"heading_2\", \"heading_2\": { \"rich_text\": [ { \"text\": { \"content\": \"📝 今日練習摘要\" } } ] } },"
+
+    // --- 區塊 1：我的見解 ---
+    + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"💡 我的見解\" } } ] } },"
+    + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ { \"text\": { \"content\": \" \" } } ] } },"
     + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
-    + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \"關鍵單字 1: \" } } ] } },"
-    + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \"關鍵單字 2: \" } } ] } }"
+
+    // --- 區塊 2：文章概要 ---
+    + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"📝 文章概要\" } } ] } },"
+    + "  { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [ { \"text\": { \"content\": \" \" } } ] } },"
+    + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
+
+    // --- 區塊 3：特別單字 ---
+    + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"✨ 特別單字\" } } ] } },"
+    + "  { \"object\": \"block\", \"type\": \"bulleted_list_item\", \"bulleted_list_item\": { \"rich_text\": [ { \"text\": { \"content\": \" \" } } ] } },"
+    + "  { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },"
+
+    // --- 區塊 4：原文複製 ---
+    + "  { \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { \"rich_text\": [ { \"text\": { \"content\": \"📌 原文複製\" } } ] } },"
+    + "  { \"object\": \"block\", \"type\": \"quote\", \"quote\": { \"rich_text\": [ { \"text\": { \"content\": \" \" } } ] } }"
     + "]"
     + "}";
 
