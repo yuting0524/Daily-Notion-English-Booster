@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.time.ZoneId;
+
 
 /**
  * MIS 自動化練習系統 v4
@@ -78,7 +80,8 @@ public class NotionDevToSync {
         System.out.println("🏷  標籤：" + article.tags);
 
         // ── 時間 ─────────────────────────────────────────────────────────────
-        String today    = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+        // 加上 ZoneId 確保抓到的是台北的今天
+        String today    = LocalDate.now(java.time.ZoneId.of("Asia/Taipei")).format(DateTimeFormatter.ISO_LOCAL_DATE);
         String dateTime = today + "T08:00:00.000+08:00";
 
         String safeTitle = escapeJson(article.title);
