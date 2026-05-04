@@ -188,70 +188,87 @@ public class NotionDevToSync {
     // ════════════════════════════════════════════════════════
     //  Notion：組 Request Body
     // ════════════════════════════════════════════════════════
-    private static String buildNotionBody(String databaseId, Article a, String dateTime) {
-        String safeTitle = escapeJson(a.title);
-        String safeUrl   = escapeJson(a.url);
-        String safeRich  = escapeJson(a.source + "  |  " + a.tags);
+        private static String buildNotionBody(String databaseId, Article a, String dateTime) {
+    String safeTitle = escapeJson(a.title);
+    String safeUrl   = escapeJson(a.url);
+    String safeRich  = escapeJson(a.source + "  |  " + a.tags);
 
-        return "{\n" +
+    return "{\n" +
         "  \"parent\": { \"database_id\": \"" + databaseId + "\" },\n" +
-        "  \"icon\": { \"type\": \"emoji\", \"emoji\": \"🌿\" },\n" +
         "  \"properties\": {\n" +
         "    \"Name\": { \"title\": [{ \"text\": { \"content\": \"" + safeTitle + "\" } }] },\n" +
         "    \"URL\": { \"url\": \"" + safeUrl + "\" },\n" +
-        "    \"Date\": { \"date\": { \"start\": \"" + dateTime + "\" } },\n" + // 這裡保持最簡單的寫法
+        "    \"Date\": { \"date\": { \"start\": \"" + dateTime + "\" } },\n" +
         "    \"Article_Title\": { \"rich_text\": [{ \"text\": { \"content\": \"" + safeRich + "\" } }] }\n" +
         "  },\n" +
         "  \"children\": [\n" +
 
-            // @remind mention（觸發 Notion 行事曆提醒的關鍵）
-            "    { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [\n" +
-            "      { \"type\": \"mention\",\n" +
-            "        \"mention\": { \"type\": \"date\", \"date\": { \"start\": \"" + dateTime + "\" } },\n" +
-            "        \"annotations\": { \"color\": \"blue_background\" } },\n" +
-            "      { \"type\": \"text\", \"text\": { \"content\": \"  📚 起來練習 MIS 囉！\" } }\n" +
-            "    ] } },\n" +
-            "    { \"object\": \"block\", \"type\": \"divider\", \"divider\": {} },\n" +
+        // 🔔 提醒時間
+        "    { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [" +
+        "      { \"type\": \"mention\", \"mention\": { \"type\": \"date\", \"date\": { \"start\": \"" + dateTime + "\" } }, \"annotations\": { \"color\": \"gray\" } }" +
+        "    ] } },\n" +
 
-            // 二、文章概要 (大地棕)
-            divider() + ",\n" +
-            morandiToggle("文章概要", "brown_background", 
-                kaomojiLine("(੭ ᐕ)੭*⁾⁾", "1. 我的作答：") + "," +
-                kaomojiLine("(´•ω•｀)", "2. AI 批閱：") + "," +
-                kaomojiLine("(´•ω•｀)", "3. AI 解析：")
-            ) + ",\n" +
+        divider() + ",\n" +
 
-            // 三、我的見解 (高級灰)
-            divider() + ",\n" +
-            morandiToggle("我的見解", "gray_background", 
-                kaomojiLine("(੭ ᐕ)੭*⁾⁾", "1. 我的作答：") + "," +
-                kaomojiLine("(´•ω•｀)", "2. AI 批閱：") + "," +
-                kaomojiLine("(´•ω•｀)", "3. AI 解析：")
-            ) + ",\n" +
+        // ──────────────── 文章概要 ────────────────
+        morandiToggle("文章概要", "brown_background",
+            section("1. 我的作答") + "," +
+            section("2. AI 批閱") + "," +
+            section("3. AI 解析")
+        ) + ",\n" +
 
-           // 四、反思互動區 (粉橘)
-            divider() + ",\n" +
-            morandiToggle("反思互動區", "orange_background", 
-                kaomojiLine("(´•ω•｀)", "1. AI 提問：") + "," +
-                kaomojiLine("(੭ ᐕ)੭*⁾⁾", "2. 我的作答：") + "," +
-                kaomojiLine("(´•ω•｀)", "3. AI 批閱：") + "," +
-                kaomojiLine("(´•ω•｀)", "4. AI 解析：")
-            ) + ",\n" +
+        divider() + ",\n" +
 
-            // 五、特別單字 (奶油黃)
-            divider() + ",\n" +
-            morandiToggle("特別單字", "yellow_background", 
-                kaomojiLine("(੭ ᐕ)੭*⁾⁾", "重點單字紀錄：")
-            ) + ",\n" +
+        // ──────────────── 我的見解 ────────────────
+        morandiToggle("我的見解", "gray_background",
+            section("1. 我的作答") + "," +
+            section("2. AI 批閱") + "," +
+            section("3. AI 解析")
+        ) + ",\n" +
 
-            // 六、原文複製 (簡潔灰)
-            divider() + ",\n" +
-            morandiToggle("原文複製", "default", 
-                "{\"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [{\"type\": \"text\", \"text\": {\"content\": \"Paste here...\"}, \"annotations\": {\"color\": \"gray\"}}] }}"
-            ) + "\n" +
-            
-            "  ]\n" +
-            "}";
+        divider() + ",\n" +
+
+        // ──────────────── 反思互動區 ────────────────
+        morandiToggle("反思互動區", "orange_background",
+            section("1. AI 提問") + "," +
+            section("2. 我的作答") + "," +
+            section("3. AI 批閱") + "," +
+            section("4. AI 解析")
+        ) + ",\n" +
+
+        divider() + ",\n" +
+
+        // ──────────────── 特別單字 ────────────────
+        morandiToggle("特別單字", "yellow_background",
+            section("重點單字紀錄")
+        ) + ",\n" +
+
+        divider() + ",\n" +
+
+        // ──────────────── 原文複製 ────────────────
+        morandiToggle("原文複製", "default",
+            spacer()
+        ) + "\n" +
+
+        "  ]\n" +
+        "}";
+}
+    private static String section(String title) {
+        return subHeading(title) + "," +
+            spacer() + "," +   // ← 可點擊輸入區
+            divider();
+    }
+
+    // --- 🛠️ 這是新的輔助方法，請務必一起替換/新增 ---
+
+    // 1. 中標題 (Heading 3)：讓「我的作答」看起來很顯眼
+    private static String subHeading(String text) {
+    return "{ \"object\": \"block\", \"type\": \"heading_3\", \"heading_3\": { " +
+           "\"rich_text\": [{ \"type\": \"text\", \"text\": { \"content\": \"" + text + "\" } }] } }";
+    }
+    private static String spacer() {
+    return "{ \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { " +
+           "\"rich_text\": [{ \"type\": \"text\", \"text\": { \"content\": \" \" } }] } }";
     }
 
     // ════════════════════════════════════════════════════════
@@ -297,23 +314,13 @@ public class NotionDevToSync {
             "}";
     }
 
-    // 顏文字輸入行：(੭ ᐕ)੭*⁾⁾ 是妳，(´•ω•｀) 是 AI
-    private static String kaomojiLine(String kaomoji, String label) {
+    // 生成分隔線區塊
+    private static String divider() {
         return "{" +
             "  \"object\": \"block\"," +
-            "  \"type\": \"paragraph\"," +
-            "  \"paragraph\": {" +
-            "    \"rich_text\": [" +
-            "      {\"type\": \"text\", \"text\": {\"content\": \"" + kaomoji + " \"}}," +
-            "      {\"type\": \"text\", \"text\": {\"content\": \"" + label + " \"}, \"annotations\": {\"bold\": true, \"color\": \"gray\"}}" +
-            "    ]" +
-            "  }" +
+            "  \"type\": \"divider\"," +
+            "  \"divider\": {}" +
             "}";
-    }
-
-    // 分隔線區塊零件
-    private static String divider() {
-        return "{\"object\": \"block\", \"type\": \"divider\", \"divider\": {}}";
     }
 
     // ════════════════════════════════════════════════════════
