@@ -1,75 +1,73 @@
-# 系統名稱：Automated Technical Literature Retrieval System (Notion Integration)
+# 🚀 Automated Technical Literature Retrieval System (ATLR)
 
-本專案為一套基於 MIS（管理資訊系統）邏輯設計的自動化資訊處理系統。透過 GitHub Actions 驅動 Java 程式執行，每日定時檢索學術與技術領域的高品質文獻，並透過 Notion API 進行資料持久化存儲，旨在建立系統化的每日閱讀與分析習慣。
+![Java Version](https://img.shields.io/badge/Java-17-orange.svg)
+![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)
+![License](https://img.shields.io/badge/License-MIT-blue.svg)
 
-## 核心功能
+系統旨在每日定時檢索學術界（arXiv）與技術圈（Hacker News）的高品質文獻，並透過 Notion API 進行結構化存儲與即時通知，建立系統化的知識管理流程。
 
-1. **多來源自動檢索 (Multi-Source Retrieval)**
-   * **主要來源：arXiv API** — 針對 8 個特定學術領域進行隨機抽樣，獲取最新發布之學術論文。
-   * **次要來源 (Fallback 1)：Hacker News API** — 檢索科技、創業與計算機科學領域之高權重熱門文章。
-   * **保底來源 (Fallback 2)：Wikipedia REST API** — 檢索每日精選內容，確保系統執行不因外部來源失效而中斷。
+---
 
-2. **自動容錯機制 (Fault Tolerance)**
-   * 導入 Fallback 策略，當主要來源 API 回應異常時，系統將自動依序切換至備援來源。
+## 🛠️ 核心技術特性
 
-3. **排程自動化 (Scheduling)**
-   * 設定台北時間 (UTC+8) 08:00 定時執行，並支援 GitHub Workflow Dispatch 手動觸發機制。
+### 1. 多層次容錯檢索機制 (Resilient Data Retrieval)
+系統具備自動化故障轉移（Failover）邏輯，確保資訊獲取的穩定性：
+* **主要來源 (Primary)**：透過 arXiv API 檢索特定電腦科學（CS）與統計學（Stat）領域之最新論文。
+* **備援來源 (Fallback)**：當主要來源回應異常時，系統將自動依序切換至 **Hacker News** 與 **Wikipedia REST API**，確保每日數據流不中斷。
 
-## arXiv 檢索領域配置
+### 2. 推播通知優化 (Notification Optimization)
+針對 Notion API 對於日期提醒（Date Reminders）在行動裝置上推播不穩定的技術限制，本系統導入了 **User Mention 觸發機制**：
+* **技術實現**：在 JSON Payload 中動態注入 `mention user` 區塊，直接標註使用者 UUID。
+* **執行效果**：GitHub Actions 執行完畢後，能確保使用者在手機端即時收到系統級推播通知。
 
-| 分類 ID | 技術領域 (Subject) |
-| :--- | :--- |
-| cs.AI | Artificial Intelligence |
-| cs.LG | Machine Learning |
-| cs.SE | Software Engineering |
-| cs.IR | Information Retrieval |
-| cs.CY | Computers and Society |
-| cs.HC | Human-Computer Interaction |
-| econ.GN | General Economics |
-| stat.ML | Statistics / Machine Learning |
+### 3. 高安全性憑證管理 (Secrets Management)
+遵循資安最佳實踐，所有敏感憑證均透過環境變數管理：
+* **Zero Hardcoding**：不將 API Tokens 或私密 ID 寫入原始碼。
+* **Encrypted Storage**：利用 GitHub Secrets 存儲加密資訊，並在執行期（Runtime）透過 YAML 映射至環境變數。
 
-## 系統架構與資料庫結構 (Database Schema)
+---
 
-在 Notion 資料庫中需預先配置以下欄位以完成資料對接：
+## 📊 資料庫模式設計 (Database Schema)
 
-| 欄位名稱 | 資料類型 | 描述內容 |
+| 欄位名稱 (Property) | 資料類型 | 功能描述 |
 | :--- | :--- | :--- |
-| Name | Title | 文章或論文標題 |
-| URL | URL | 原始文獻連結 |
-| Date | Date | 執行當天 08:00 (包含系統提醒) |
-| Article_Title | Rich Text | 來源分類與作者資訊標籤 |
+| **Name** | Title | 文獻原始標題 |
+| **URL** | URL | 原始資料源導向連結 |
+| **Date** | Date | 系統處理時間與定時提醒戳記 |
+| **Article_Title** | Rich Text | 類別標籤與作者資訊之元數據 |
 
 ### 資料庫範本連結 (Template Link)
 為了確保系統穩定運作，您可以參考或複製以下預先配置好的 Notion 資料庫範本：
 [點擊此處查看 Notion 資料庫範本](https://www.notion.so/fae3816f7d3b83718e6101eb312f4c77?v=ec13816f7d3b835695168843e84fed36&source=copy_link)
 *注意：複製後請記得在該資料庫的右上角「...」→「Connections」中加入您自己的 Integration 授權。*
+*實際介面可至assets資料夾查看*
 
-### 頁面內容結構 (Page Content Structure)
-* **Mention Date (@remind)**: 系統自動標註之提醒標籤。
-* **我的見解 (My Insights)**: 供使用者填寫之批判性思考區域。
-* **文章概要 (Executive Summary)**: 核心內容摘要。
-* **特別單字 (Technical Vocabulary)**: 關鍵技術術語記錄。
-* **原文複製 (Original Excerpts)**: 重要原文片段引用。
 
-## 部署流程 (Implementation Guide)
+## 🚀 部署流程 (Deployment Guide)
 
-1. **環境複製**
-   使用 Git 指令克隆專案倉庫至本地或個人伺服器。
+1.  **Fork 專案**：將本倉庫複製至個人帳號下以啟用個人化排程。
+2.  **Notion 整合設定**：
+    * 於 [Notion Developers](https://www.notion.so/my-integrations) 建立 Integration。
+    * 在目標資料庫開啟 **Connections** 授權。
+3.  **配置 GitHub Secrets**：
+    於 Settings > Secrets and variables > Actions 中新增：
+    * `NOTION_TOKEN`：您的整合金鑰。
+    * `DATABASE_ID`：目標資料庫 ID。
+    * `NOTION_USER_ID`：使用者 UUID。
+4.  **啟動自動化**：
+    * 系統預設每日台北時間 (UTC+8) **08:00** 自動執行。
+    * 亦可透過 Actions 頁面手動點擊 **Run workflow**。
 
-2. **Notion Integration 授權**
-   於 Notion Developers 平台建立整合項目，並取得 Internal Integration Token。
+---
 
-3. **資料庫連線設定**
-   於目標資料庫中啟用 Connections，並擷取 URL 中的 DATABASE_ID。
+## 💻 技術堆棧 (Technical Stack)
 
-4. **GitHub Secrets 配置**
-   於 Repository 設定中配置環境變數：`NOTION_TOKEN` 與 `DATABASE_ID`。
+* **Runtime Environment**: OpenJDK 17
+* **Networking**: Native Java `HttpClient`
+* **CI/CD Orchestration**: GitHub Actions
+* **Data Interchange**: JSON / RESTful API
 
-5. **CI/CD 自動化啟動**
-   確認 `.github/workflows/daily-notion-sync.yml` 設定正確後，系統將依據 Cron 排程自動運作。
+---
 
-## 技術堆棧 (Technical Stack)
-
-* **Java 17**: 核心邏輯開發，採用原生 java.net.http.HttpClient 確保輕量化。
-* **GitHub Actions**: 負責系統自動化運維 (CI/CD) 與排程管理。
-* **RESTful APIs**: 整合 arXiv, Hacker News, Wikipedia 與 Notion 接口。
+## 📜 許可聲明 (License)
+本專案採用 **MIT 許可證** 開源。歡迎任何形式的貢獻、Fork 或功能建議。

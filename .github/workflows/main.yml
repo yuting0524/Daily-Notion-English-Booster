@@ -2,8 +2,8 @@ name: Daily Notion English Push
 
 on:
   schedule:
-    # 每天台灣時間早上 5:00點執行
-    - cron: '0 21 * * *'
+    # 每天台灣時間早上 7:00點執行
+    - cron: '0 23 * * *'
   # 讓妳可以在 GitHub 網頁上手動按按鈕測試
   workflow_dispatch:
 
@@ -25,6 +25,7 @@ jobs:
           # 從妳設定的 GitHub Secrets 抓取鑰匙
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           DATABASE_ID: ${{ secrets.DATABASE_ID }}
+          NOTION_USER_ID: ${{ secrets.NOTION_USER_ID }}
         run: |
           javac NotionDevToSync.java
           java NotionDevToSync

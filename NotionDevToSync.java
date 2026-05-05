@@ -10,15 +10,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
-/**
- * MIS 自動化練習系統 v5
- *
- * 修正：
- *  - cron 00:00 UTC = 台北 08:00，寫入當天 08:00 提醒不會過期
- *  - 移除 Notion date property 裡的 reminder（API 不支援）
- *  - 移除 econ.GN（經濟/會計類）
- *  - 程式碼整體重構，職責分離更清楚
- */
 public class NotionDevToSync {
 
     private static final Random     RANDOM = new Random();
@@ -192,6 +183,7 @@ public class NotionDevToSync {
     String safeTitle = escapeJson(a.title);
     String safeUrl   = escapeJson(a.url);
     String safeRich  = escapeJson(a.source + "  |  " + a.tags);
+    String userId = System.getenv("NOTION_USER_ID");
 
     return "{\n" +
         "  \"parent\": { \"database_id\": \"" + databaseId + "\" },\n" +
@@ -203,9 +195,12 @@ public class NotionDevToSync {
         "  },\n" +
         "  \"children\": [\n" +
 
-        // 🔔 提醒時間
+        // 🔔 這次真的會響的提醒 (同時標記 妳 + 時間)
         "    { \"object\": \"block\", \"type\": \"paragraph\", \"paragraph\": { \"rich_text\": [" +
-        "      { \"type\": \"mention\", \"mention\": { \"type\": \"date\", \"date\": { \"start\": \"" + dateTime + "\" } }, \"annotations\": { \"color\": \"gray\" } }" +
+        "      { \"type\": \"text\", \"text\": { \"content\": \"(੭ ᐕ)੭⁾⁾*嗨 \" } }," +
+        "      { \"type\": \"mention\", \"mention\": { \"type\": \"user\", \"user\": { \"id\": \"" + userId + "\" } } }," +
+        "      { \"type\": \"text\", \"text\": { \"content\": \"！新文章來ㄌ!：\" } }," +
+        "      { \"type\": \"mention\", \"mention\": { \"type\": \"date\", \"date\": { \"start\": \"" + dateTime + "\" } } }" +
         "    ] } },\n" +
 
         divider() + ",\n" +
