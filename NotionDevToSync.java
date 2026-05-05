@@ -35,7 +35,7 @@ public class NotionDevToSync {
     public static void main(String[] args) throws Exception {
         String notionToken = requireEnv("NOTION_TOKEN");
         String databaseId = requireEnv("DATABASE_ID");
-        String userId = requireEnv("USER_ID");
+        String userId = requireEnv("NOTION_USER_ID");
 
         Article article = fetchWithFallback();
         System.out.println("✅ 來源：" + article.source());
